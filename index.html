@@ -90,6 +90,22 @@
             </div>
         </div>
 
+        <!-- Tela de erro de ativação -->
+        <div id="errorScreen" class="screen hidden">
+            <div class="dashboard">
+                <h1 style="color:red;">❌ Erro na Ativação</h1>
+                <p class="subtitle">O token de verificação é inválido ou expirou.</p>
+                <p>Por favor, registre-se novamente ou solicite um novo email de verificação.</p>
+
+                <button class="btn btn-primary" onclick="showLogin()">
+                    Ir para Login
+                </button>
+                <button class="btn btn-secondary" onclick="showRegister()">
+                    Criar nova conta
+                </button>
+            </div>
+        </div>
+
         <!-- Info do usuário + token -->
         <div id="dashboardScreen" class="screen hidden">
             <div class="dashboard">

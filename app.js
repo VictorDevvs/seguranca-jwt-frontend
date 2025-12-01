@@ -38,6 +38,7 @@ function showRegister() {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('dashboardScreen').classList.add('hidden');
     document.getElementById('buscarUsuarioScreen').classList.add('hidden');
+    document.getElementById('errorScreen').classList.add('hidden');
 }
 
 function showLogin() {
@@ -45,6 +46,18 @@ function showLogin() {
     document.getElementById('loginScreen').classList.remove('hidden');
     document.getElementById('dashboardScreen').classList.add('hidden');
     document.getElementById('buscarUsuarioScreen').classList.add('hidden');
+    document.getElementById('errorScreen').classList.add('hidden');
+}
+
+function showErrorScreen(message = "O token é inválido ou expirou.") {
+    document.getElementById('registerScreen').classList.add('hidden');
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('dashboardScreen').classList.add('hidden');
+    document.getElementById('buscarUsuarioScreen').classList.add('hidden');
+
+    const errorScreen = document.getElementById('errorScreen');
+    errorScreen.classList.remove('hidden');
+    errorScreen.querySelector('.subtitle').textContent = message;
 }
 
 function showDashboard(userData = {}) {
@@ -52,6 +65,7 @@ function showDashboard(userData = {}) {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('buscarUsuarioScreen').classList.add('hidden');
     document.getElementById('dashboardScreen').classList.remove('hidden');
+
 
     document.getElementById('userName').textContent = userData.nome || localStorage.getItem('userName') || 'N/A';
     document.getElementById('userEmail').textContent = userData.email || localStorage.getItem('userEmail') || 'N/A';
@@ -145,34 +159,42 @@ async function handleLogin(event) {
             body: JSON.stringify(credentials)
         });
 
-        if (res.ok) {
-            const data = await res.json();
-            if (data.token) {
-                setToken(data.token);
-                localStorage.setItem('userEmail', credentials.email);
-                localStorage.setItem('userName', data.nome || credentials.email);
+        if (!res.ok) {
+            const contentType = res.headers.get('content-type') || '';
+            let errMsg;
 
-                showAlert('loginAlert', 'Login realizado com sucesso!', 'success');
-
-                setTimeout(() => {
-                    showDashboard({
-                        nome: data.nome || credentials.email,
-                        email: credentials.email,
-                        token: data.token
-                    });
-                }, 600);
-            } else {
-                showAlert('loginAlert', 'Resposta inválida do servidor (sem token).', 'error');
-            }
-        } else {
-            let errMsg = 'Email ou senha incorretos.';
-            try {
+            if (contentType.includes('application/json')) {
                 const errJson = await res.json();
-                errMsg = errJson.message || JSON.stringify(errJson);
-            } catch (e) {
-                try { errMsg = await res.text(); } catch (ee) {}
+                errMsg = errJson.message || 'Erro desconhecido.';
+            } else {
+                errMsg = await res.text();
             }
-            showAlert('loginAlert', errMsg, 'error');
+
+            if (errMsg.includes("EMAIL NÃO VERIFICADO")) {
+                showAlert('loginAlert', '⚠️ Seu email ainda não foi verificado. Verifique antes de fazer login.', 'error');
+            } else {
+                showAlert('loginAlert', errMsg, 'error');
+            }
+            return; 
+        }
+
+        const data = await res.json();
+        if (data.token) {
+            setToken(data.token);
+            localStorage.setItem('userEmail', credentials.email);
+            localStorage.setItem('userName', data.nome || credentials.email);
+
+            showAlert('loginAlert', 'Login realizado com sucesso!', 'success');
+
+            setTimeout(() => {
+                showDashboard({
+                    nome: data.nome || credentials.email,
+                    email: credentials.email,
+                    token: data.token
+                });
+            }, 600);
+        } else {
+            showAlert('loginAlert', 'Resposta inválida do servidor (sem token).', 'error');
         }
     } catch (error) {
         showAlert('loginAlert', 'Erro de conexão com o servidor.', 'error');
@@ -198,8 +220,21 @@ function logout() {
 
 async function handleInitialAuthFromUrlOrStorage() {
     const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get('status');
     const tokenFromUrl = urlParams.get('token');
     const tokenLocal = localStorage.getItem('token');
+
+    if (status === 'erro') {
+        showErrorScreen("❌ O token de verificação é inválido ou expirou.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+    }
+
+    if (status === 'ok') {
+        showLogin();
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+    }
 
     if (tokenFromUrl) {
         setToken(tokenFromUrl);
