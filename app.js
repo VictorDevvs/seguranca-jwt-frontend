@@ -39,6 +39,8 @@ function showRegister() {
     document.getElementById('dashboardScreen').classList.add('hidden');
     document.getElementById('buscarUsuarioScreen').classList.add('hidden');
     document.getElementById('errorScreen').classList.add('hidden');
+    document.getElementById('forgotPasswordScreen').classList.add('hidden'); 
+    document.getElementById('resetPasswordScreen').classList.add('hidden');
 }
 
 function showLogin() {
@@ -47,6 +49,8 @@ function showLogin() {
     document.getElementById('dashboardScreen').classList.add('hidden');
     document.getElementById('buscarUsuarioScreen').classList.add('hidden');
     document.getElementById('errorScreen').classList.add('hidden');
+    document.getElementById('forgotPasswordScreen').classList.add('hidden'); 
+    document.getElementById('resetPasswordScreen').classList.add('hidden');
 }
 
 function showErrorScreen(message = "O token é inválido ou expirou.") {
@@ -54,6 +58,8 @@ function showErrorScreen(message = "O token é inválido ou expirou.") {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('dashboardScreen').classList.add('hidden');
     document.getElementById('buscarUsuarioScreen').classList.add('hidden');
+    document.getElementById('forgotPasswordScreen').classList.add('hidden');
+    document.getElementById('resetPasswordScreen').classList.add('hidden');
 
     const errorScreen = document.getElementById('errorScreen');
     errorScreen.classList.remove('hidden');
@@ -64,8 +70,10 @@ function showDashboard(userData = {}) {
     document.getElementById('registerScreen').classList.add('hidden');
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('buscarUsuarioScreen').classList.add('hidden');
+    document.getElementById('forgotPasswordScreen').classList.add('hidden');
+    document.getElementById('resetPasswordScreen').classList.add('hidden');
+    document.getElementById('errorScreen').classList.add('hidden');
     document.getElementById('dashboardScreen').classList.remove('hidden');
-
 
     document.getElementById('userName').textContent = userData.nome || localStorage.getItem('userName') || 'N/A';
     document.getElementById('userEmail').textContent = userData.email || localStorage.getItem('userEmail') || 'N/A';
@@ -82,11 +90,32 @@ function voltarDashboard() {
     document.getElementById('dashboardScreen').classList.remove('hidden');
 }
 
+function showResetPassword() {
+    document.querySelectorAll('.screen').forEach(div => div.classList.add('hidden'));
+    document.getElementById('resetPasswordScreen').classList.remove('hidden');
+}
+
+function showForgotPassword() {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('registerScreen').classList.add('hidden');
+    document.getElementById('dashboardScreen').classList.add('hidden');
+    document.getElementById('forgotPasswordScreen').classList.remove('hidden');
+    document.getElementById('resetPasswordScreen').classList.add('hidden');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('linkToLogin').addEventListener('click', (e) => { e.preventDefault(); showLogin(); });
-    document.getElementById('linkToRegister').addEventListener('click', (e) => { e.preventDefault(); showRegister(); });
+    document.getElementById('linkToLogin').addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        showLogin(); 
+    });
+    document.getElementById('linkToRegister').addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        showRegister(); 
+    });
+
     document.getElementById('googleLoginBtn').addEventListener('click', loginWithGoogle);
     document.getElementById('githubLoginBtn').addEventListener('click', loginWithGithub);
+
     document.getElementById('btnBuscarUsuario').addEventListener('click', showBuscarUsuario);
     document.getElementById('btnVoltar').addEventListener('click', voltarDashboard);
     document.getElementById('btnLogout').addEventListener('click', logout);
@@ -94,6 +123,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('registerForm').addEventListener('submit', handleRegister);
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    document.getElementById('forgotForm').addEventListener('submit', handleForgotPassword);
+    document.getElementById('resetPasswordForm').addEventListener('submit', handleResetPassword);
+
+    document.getElementById('forgotPasswordBtn').addEventListener('click', showForgotPassword);
+    document.getElementById('backToLoginBtn').addEventListener('click', showLogin);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('resetToken');
+    
+    if (resetToken) {
+        document.getElementById('resetToken').value = resetToken;
+        showResetPassword();
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return; 
+    }
 
     handleInitialAuthFromUrlOrStorage();
 });
@@ -335,4 +379,83 @@ async function parseJsonSafe(res) {
         return await res.json();
     }
     return {};
+}
+
+async function handleForgotPassword(event) {
+    event.preventDefault();
+    const btn = document.getElementById('sendResetLinkBtn');
+    const originalText = btn.innerHTML;
+    try {
+        btn.innerHTML = '<span class="loading"></span> Enviando...';
+        btn.disabled = true;
+
+        const email = document.getElementById('forgotEmail').value.trim();
+
+        const res = await fetch(`${API_BASE_URL}/auth/redefinir-senha`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({email}) 
+        });
+
+        if (res.ok) {
+            showAlert('forgotAlert', '📧 Link de recuperação enviado para seu e-mail!', 'success');
+        } else {
+            const errMsg = await res.text();
+            showAlert('forgotAlert', errMsg || 'Erro ao enviar link de recuperação.', 'error');
+        }
+    } catch (error) {
+        showAlert('forgotAlert', 'Erro de conexão com o servidor.', 'error');
+        console.error('Erro forgot password:', error);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function handleResetPassword(event) {
+    event.preventDefault();
+    const btn = document.getElementById('resetPasswordBtn');
+    const originalText = btn.innerHTML;
+    try {
+        btn.innerHTML = '<span class="loading"></span> Redefinindo...';
+        btn.disabled = true;
+
+        const token = document.getElementById('resetToken').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (newPassword !== confirmPassword) {
+            showAlert('resetAlert', '❌ As senhas não coincidem!', 'error');
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            showAlert('resetAlert', '❌ A senha deve ter no mínimo 6 caracteres!', 'error');
+            return;
+        }
+
+        const res = await fetch(`${API_BASE_URL}/auth/nova-senha`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: token,
+                senha: newPassword,
+                senhaConfirmacao: confirmPassword
+            })
+        });
+
+        if (res.ok) {
+            showAlert('resetAlert', '✅ Senha redefinida com sucesso! Faça login novamente.', 'success');
+            setTimeout(() => showLogin(), 1500);
+        } else {
+            const errMsg = await res.text();
+            showAlert('resetAlert', errMsg || 'Erro ao redefinir senha.', 'error');
+        }
+    } catch (error) {
+        showAlert('resetAlert', 'Erro de conexão com o servidor.', 'error');
+        console.error('Erro reset password:', error);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
