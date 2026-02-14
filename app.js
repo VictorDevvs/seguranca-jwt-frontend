@@ -430,7 +430,7 @@ async function handleResetPassword(event) {
         }
 
         if (newPassword.length < 6) {
-            showAlert('resetAlert', '❌ A senha deve ter no mínimo 6 caracteres!', 'error');
+            showAlert('resetAlert', '❌ A senha deve ter no mínimo 8 caracteres!', 'error');
             return;
         }
 
