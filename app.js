@@ -1,4 +1,5 @@
 const API_BASE_URL = 'http://localhost:8080/api/v1';
+const regex = /(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[$*&@#])[\w $*&@#]{8,}/;
 
 function escapeHtml(str) {
     return String(str)
@@ -8,6 +9,7 @@ function escapeHtml(str) {
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#39;');
 }
+
 
 function showAlert(elementId, message, type = 'info') {
     const alertDiv = document.getElementById(elementId);
@@ -155,6 +157,15 @@ async function handleRegister(event) {
             email: document.getElementById('registerEmail').value.trim(),
             senha: document.getElementById('registerPassword').value
         };
+
+       if(!regex.test(userData.senha)){
+        showAlert(
+                'registerAlert', 
+                'A senha deve conter pelo menos 8 caracteres, incluindo letras maiúsculas, minúsculas, números e caracteres especiais ($*&@#).', 
+                'error'
+            );
+            return;
+       }
 
         const res = await fetch(`${API_BASE_URL}/auth/registro`, {
             method: 'POST',
@@ -429,7 +440,7 @@ async function handleResetPassword(event) {
             return;
         }
 
-        if (newPassword.length < 6) {
+        if (newPassword.length < 8) {
             showAlert('resetAlert', '❌ A senha deve ter no mínimo 8 caracteres!', 'error');
             return;
         }
